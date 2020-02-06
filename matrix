@@ -1,0 +1,627 @@
+#!/bin/bash
+
+
+
+
+
+
+dims(){
+	row=0
+	cols=0
+	
+	while read myLine
+	do	
+#	echo  "$myLine"
+		if  test $row == 0
+		then
+			for i in $myLine 
+			do
+				cols=$(expr $cols + 1)
+			done
+		fi
+		row=$(expr $row + 1)
+	done < $input1
+	
+	echo  "$row $cols"
+		
+
+}
+
+
+
+mean(){
+	tempCol="tempCol"
+	tempMean="tempMean"
+	tempRow="tempRow"
+	reverseRow="reverse"
+	j=1
+	rows=0
+	numCol=0
+
+	#first find the number of columss and rows
+	while read myLine
+	do
+		if test $rows == 0
+		then	
+			for i in $myLine
+			do
+				numCol=$(expr $numCol + 1)
+			done
+		fi
+		rows=$(expr $rows+1)
+	
+	done < $input1
+
+	#use the number of colums for loop counter
+	while test  $j -le $numCol 
+	do
+
+
+	#echo -e "Num Col: $j"
+	sum=0
+	count=0
+
+	#use cut to get the first number of each row
+	cut -f $j $input1 > $tempCol
+
+	#cat $tempCol | tr '\n' '\t' > "$tempRow"
+	while read myLine
+	do
+	
+		sum=$(expr $sum + $myLine)
+		count=$(expr $count + 1)		
+
+	done <$tempCol
+
+
+
+	mean=$(((sum+(rows/2)*( (sum>0)*2-1)) /rows))
+
+
+	echo -e "$mean"  >> $tempMean
+
+	j=$(expr $j + 1)
+
+	done
+	
+	#this is my method for removing trailing tabs described in transpose
+	cat $tempMean | tr '\n' '\t' > $tempRow
+	rev $tempRow > $reverseRow
+	cut -c 2- $reverseRow > $tempRow
+	rev $tempRow > $tempMean
+
+#echo >> $tempMean
+	cat "$tempMean"
+
+
+rm -f $tempMean
+rm -f $tempRow
+rm -f $tempCol
+rm -f $reverseRow
+
+
+
+}
+
+
+
+
+
+
+
+transpose(){
+
+	tempMatrix="tempMatrix"
+	tempCol="tempCol"
+	tempRow="tempRow"
+	reverseRow="reverse"
+	cols=0
+	j=1
+	
+	while read myLine
+	do
+		if test $cols == 0
+		then
+			for i in $myLine
+			do
+				cols=$(expr $cols + 1 )
+			done
+		fi
+	
+	done < $input1
+
+	#use a while loop with column number as counter
+	while test $j -le $cols
+	do
+		 
+
+		#get the first colum
+		cut -f $j $input1 > $tempCol
+		#cat $tempCol
+		#make the colum a row and add a new line
+		cat $tempCol | tr '\n' '\t' > $tempRow
+
+
+		#remove trailing tabs (hint didn't work)
+		#since number size is unknown I decided to reverse the row and just remove the first spot (the tab)
+		#I cut everything but the first spot
+		#using://www.systutorials.com/241478/how-to-exclude-last-n-columns-in-bash-on-linux/
+		rev $tempRow > $reverseRow 
+		#cut everything but the first field to the end of the line
+		cut -c 2- $reverseRow > $tempRow
+		rev $tempRow >> $tempMatrix
+
+ 
+
+	#echo >> $tempMatrix
+
+	#increase counter
+		j=$(expr $j + 1)
+
+	done
+
+	
+
+
+	#echo >> $tempMatrix
+	cat $tempMatrix
+	rm -f $tempMatrix
+	rm -f $tempRow
+	rm -f $reverseRow
+	rm -f $tempCol
+
+}	
+
+
+
+add(){
+	tempMatrix="tempMatrix1"
+	tempRow="tempRow"
+	finalMatrix="finalMatrix"
+	temp1="tempRow1"
+	temp2="tempRow2"
+	reverseRow="reverse"
+	transMatrix="transposedMatrix"
+
+	num1=0
+	num2=0
+	sum=0
+	j=1
+	cols=0
+	roww=0
+
+	#get the number of columns and rows 
+
+	while read myLine
+	do
+		if test $cols == "0"
+		then
+			for i in $myLine
+			do
+				cols=$(expr $cols + 1 )
+			done
+		fi
+		rows=$(expr $rows + 1 )
+	done < $input1
+
+	#put each column to add into file to read line by line from 
+	while test $j -le $cols
+	do
+		cut -f $j $input1 > $temp1
+		cut -f $j $input2 > $temp2
+		i=0
+
+
+		#read  from both cut files at once and add each value to tempMatrix (this forms a transpose matrix)
+	#//www.cyberciti.biz/faq/unix-howto-read-line-by-line-from-file/		
+		while IFS= read -r val1 && IFS= read -r val2 <&3
+		do
+			
+			num1=$val1
+			num2=$val2
+			sum=$(expr $num1 + $num2)
+				#determine whether to keep old data or replace
+				if test $i == "0"
+				then
+					echo -e "$sum" > $tempRow
+				elif test $i -ne "0"
+				then
+					echo -e "$sum" >> $tempRow
+				fi
+					i=$(expr $i + 1 )
+
+		done <$temp1 3<$temp2
+
+#cat $tempRow
+
+		#make the new sum column a row (while tranpose later)
+		cat $tempRow | tr '\n' '\t' > $tempMatrix
+
+
+		#now remove trailing tabs same way as done in mean/transpose etc
+		rev $tempMatrix > $reverseRow
+		cut -c 2- $reverseRow > $tempRow
+		rev $tempRow >> $transMatrix
+
+
+#echo  >> $transMatrix
+
+		j=$(expr $j + 1 )
+	done
+
+
+
+	
+	count=1
+
+	#finally transpose the values
+	while test $count -le $rows
+	do
+		cut -f $count $transMatrix > $tempRow
+		#cat $tempRow
+		cat $tempRow | tr '\n' '\t' > $tempMatrix
+		rev $tempMatrix > $reverseRow
+		#cat $reverseRow
+		cut -c 2- $reverseRow > $tempRow
+		#cat $tempRow
+		rev $tempRow >> $finalMatrix
+		
+		#echo >> $finalMatrix
+		count=$(expr $count + 1)
+	done
+
+
+	cat $finalMatrix
+	#echo "done"
+	rm -f $tempMatrix
+	rm -f $finalMatrix
+	rm -f $temp1
+	rm -f $temp2
+	rm -f $tempRow
+	rm -f $transMatrix
+	rm -f $reverseRow
+}	
+
+
+multiply(){
+	row1=0
+	row2=0
+	col1=0
+	col2=0
+	num1=0
+	num2=0
+	total=0
+	product=0
+	tempRow1="tempRow1"
+	rowFile="rowFile"
+	makeRow="makeRow"
+	tempCol2="tempCol2"
+	matrix="multipliedMatrix"
+	
+	
+	#get rows and cols for both matrices
+	while read matrix1
+	do
+		if test $col1 == "0"
+		then
+			for i in $matrix1
+			do
+				col1=$(expr $col1 + 1 )
+			done
+		
+		fi
+		row1=$(expr $row1 + 1 )
+	done < $input1
+
+	while read matrix2
+	do
+		if test $col2 == "0"
+		then
+		for i in  $matrix2
+		do
+			col2=$(expr $col2 + 1 )
+		done
+		fi
+		row2=$(expr $row2 + 1 )  
+	done < $input2
+	
+	#get the first row from first input
+	while read myLine1 
+	do
+	j=1
+	
+		#change the tabs to \n
+		echo -e "$myLine1" > $rowFile
+		cat $rowFile | tr '\t' '\n' > $tempRow1
+	
+		
+		#cat $tempRow1
+
+		#use the number of matching columsn and rows to count
+		while test $j -le $col2
+		do
+			cut -f $j $input2 > $tempCol2
+				
+			#https://www.cyberciti.biz/faq/unix-howto-read-line-by-line-from-file/	
+			#This read from two files at once
+			while IFS= read -r val1 && IFS= read -r val2 <&3
+			do
+				#get the values and add multiply them
+				num1=$val1
+				num2=$val2
+				product=$(expr $num1 \* $num2 )
+				
+				#This checks to see if this is the first round of the while loop
+				#total is reset after each while loop
+				if [[ $total -eq "0" ]]
+				then
+					total=$product
+				elif [[ $total -ne "0" ]]
+				then
+					total=$(expr $total + $product )
+				fi
+
+			#	echo -e "$total"
+		
+			done < $tempRow1 3<$tempCol2
+		#if the count is 1 then this is the first loop
+		#if this is the first loop then replace all data in file
+		if test $j == 1
+		then
+			echo -e "$total" > $makeRow
+		#if this is not the first loop then add to the file
+		elif test $j -ne 1 
+		then
+			echo -e "$total" >> $makeRow
+		fi
+	
+		total=0
+		j=$(expr $j + 1)
+		done
+	#	cat $makeRow
+	#	echo -e "First"
+		cat $makeRow | tr '\n' '\t' >> $matrix
+		echo >> $matrix
+	done < $input1
+	
+	#this is my method of removing trailing tabs described in previous functions.
+	reverse="Reversed"
+	tempMat="tempMatrix"
+	rev $matrix > $reverse
+	cut -c 2- $reverse > $tempMat
+	rev $tempMat > $matrix
+	
+
+	cat $matrix							
+	rm -f $matrix
+	rm -f $reverse
+	rm -f $tempMatrix	
+	rm -f $tempRow1
+	rm -f $makeRow
+	rm -f $tempCol2
+	rm -f $tempMat
+	rm -f $rowFile
+		
+	
+
+	
+}
+	
+#check that matrix is valid
+
+#bad command
+if [ "$1" != "dims" ] && [  "$1" != "mean" ] && [  "$1" != "transpose" ] && [  "$1" != "add" ] && [  "$1" != "multiply" ]
+then
+	echo -e "bad command" 1>&2
+	exit 1
+fi
+
+
+#if the command is good get the input information
+input1="inputfile"
+input2="inputfile2"
+if [ "$#" = "0" ]
+then
+	echo "Invalid argument" 1>&2
+	exit 1
+fi
+
+if [ "$#" == "1" ] 
+then
+	#add and multiply must be passed in
+	if [ $1 == "add" ] || [ $1 == "multiply" ]
+	then
+		echo "Invalid number of arguments" 1>&2
+		exit 1
+	fi
+
+	cat > "$input1"
+#	cat $input1
+
+
+elif [ "$#" == "2" ] 
+then
+	#check that the file is readable
+	if test ! -r "$2"
+	then
+		echo "Invalid file" 1>&2
+		exit 1
+	fi
+	input1=$2
+
+
+elif [ "$#" = "3" ]
+then
+	if test ! -r "$3"
+	then
+		echo "Invalid file" 1>&2
+		exit 1
+	fi
+	input1=$2
+	input2=$3
+fi
+
+
+#if the first argument is dims 
+if test $1 == "dims" 
+then
+
+	#check for number of files/arguments
+	if test "$#" -gt "2" 
+	then
+#		echo "$1 $2"
+		echo "Invalid number of arguments" 1>&2
+		exit 1
+	fi	
+
+	
+		dims $input1
+	
+
+fi
+
+
+#if the first argumentis mean
+if test $1 == "mean"
+then	
+	
+	if test "$#" -gt "2" 
+	then
+#		echo "$1 $2"
+		echo "Invalid number of arguments" 1>&2
+		exit 1
+	fi	
+	
+
+	if test ! -r "$2"
+	then	
+		echo "Invalid file" 1>&2
+		exit 1
+	fi
+	
+#		input1=$2
+		mean $input1
+	
+fi
+
+
+if test $1 == "transpose"
+then
+	if test "$#" -gt "2"
+	then
+		echo "Invalid number of arguments" 1>&2
+		exit 1
+	fi
+
+#	if test ! -r "$2"
+#	then
+#		echo "Invalid file" 1>&2
+#		exit 1
+#	fi
+	
+
+	
+	#	input1=$2
+#		echo "Transposing" 
+		transpose $input1
+
+
+fi
+
+
+if [ $1 == "add" ] || [ $1 == "multiply" ]
+then	
+	if [ "$#" -gt "3" ] || [ "$#" -lt "2" ]
+	then	
+		echo "Invalid number of arguments" 1>&2
+		exit 1
+	fi
+	
+	if [ ! -r $2 ] || [ ! -r $3 ]
+	then
+		echo "Bad file" 1>&2
+		exit 1
+	fi
+	
+#	if test "$#" -eq "3"
+#	then
+#		input2=$3
+#	fi
+		
+	row1=0
+	row2=0
+	cols=0
+	cols2=0
+#	cat $input1
+	#this checks to make sure the dimensions are allowed to be added or multiplied together
+	#the while loops get the dimensions
+	while read matrix1
+	do
+		if test $cols == "0"
+		then
+			for i in $matrix1
+			do
+				cols=$(expr $cols + 1 )
+			done
+		
+		fi
+		row1=$(expr $row1 + 1 )
+	done < $input1
+
+	while read matrix2
+	do
+		if test $cols2 == "0"
+		then
+		for i in  $matrix2
+		do
+			cols2=$(expr $cols2 + 1 )
+		done
+		fi
+		row2=$(expr $row2 + 1 )  
+	done < $input2
+
+
+	
+	if test $1 == "add"
+	then
+#	echo "$row1 $row2"
+		if [ $cols -ne $cols2 ] || [ $cols -eq "0" ] || [ $cols2 -eq "0" ]
+		then
+			echo "Matrix is different sizes" 1>&2
+			exit 1
+		fi
+		
+		if [ $row1 -ne $row2 ] || [ $row1 == "0" ] || [ $row2 == "0" ]
+		then
+			echo "Matrix must be same sizez" 1>&2
+			exit 1
+		fi
+
+
+
+		add $input1 $input2
+	fi
+
+	if test $1 == "multiply"
+	then
+		 	
+		if  [ $row2 -ne $cols ]
+		then 
+		
+			echo "Matrix sizes are mismatched" 1>&2
+			exit 1
+		fi
+
+		
+		multiply $input1 $input2
+	fi
+
+
+fi
+
+			
+			
+	
+
+
+exit 0
